@@ -19,7 +19,7 @@ var con = mysql.createConnection({
     host: "localhost",
     user: "root",
     password: "",
-    database: "mxh"
+    database: "socket"
 });
 
 con.connect(function(err) {
@@ -27,14 +27,14 @@ con.connect(function(err) {
     con.query("SET NAME 'UTF-8'", function () {
     });
 });
-// =======================================
-var all_chat = [];
+
 //==============config==================
 
-var msg_offset = 50;
+var message_offset = 30;
 
 //======================================
-io.on('connection', function(socket) {
+var user = io.of('/user');
+user.on('connection', function(socket) {
 
     // Get username from request
     //console.log(socket.request._query['username']);
@@ -46,12 +46,20 @@ io.on('connection', function(socket) {
     //io.emit('respond', { hello: "emit all" });
 
     // Emit by room name
-    //io.sockets.to('roomname').emit('respond', {data: "123"});
+    //io.sockets.to('room_name').emit('respond', {data: "123"});
+
+    // Check username, if not found, close socket
+    if (typeof socket.request._query['username'] === 'undefined') {
+        socket.end();
+        log("Force close an socket without username.");
+        return;
+    }
 
     // When user login, join this user to an room correspondent to this username
     socket.username = socket.request._query['username'];
-    socket.room_list = [];
     socket.friends = [];
+    socket.chat_session = [];
+
     socket.join(socket.request._query['username']);
 
     console.log(socket.username  + ' with id ' + socket.id + ' connected!');
@@ -62,21 +70,19 @@ io.on('connection', function(socket) {
 
     getFriendList(socket.username, function (friend_array) {
 
-        friend_array.forEach(function (friend_name, index, p3) {
+        friend_array.forEach(function (friend_name) {
 
             // Add this friend to friend list
-            socket.friends.push(friend_name);
+            socket.friends.push(friend_name.username);
 
-            var ii = io.sockets.adapter.rooms;
-
-            if (typeof io.sockets.adapter.rooms[friend_name] !== 'undefined' && io.sockets.adapter.rooms[friend_name].length !== 0) {
-                friend_list.push({'username': friend_name, 'online': 1});
+            if (typeof user.adapter.rooms[friend_name.username] !== 'undefined' && user.adapter.rooms[friend_name.username].length !== 0) {
+                friend_list.push({username: friend_name.username, name: friend_name.name, 'online': 1});
 
                 // Emit to this friend that this friend is online
-                io.sockets.to(friend_name).emit('friend online', {friend_id: socket.username});
+                user.to(friend_name.username).emit('friend online', {friend_id: socket.username});
             }
             else {
-                friend_list.push({'username': friend_name, 'online': 0});
+                friend_list.push({username: friend_name.username, name: friend_name.name, 'online': 0});
             }
         });
         socket.emit('update-friend', {list: friend_list});
@@ -86,117 +92,124 @@ io.on('connection', function(socket) {
     // When an user want to send message to someone or to them self
     socket.on('message', function (data) {
 
-        var data_msg = entities.encode(data.msg);
+        if (typeof data.to === 'undefined' || typeof data.message === 'undefined' || typeof data.time === 'undefined') {
 
-        //data.from, data_msg
-        var chat_name;
-
-        // Send all msg to two channel
-        io.sockets.to(socket.username).emit('self msg', {msg: data_msg, inn: data.to});
-
-        // If this target user is exist in friend message
-        if (socket.friends.indexOf(data.to) !== -1) {
-            io.sockets.to(data.to).emit('msg', {from: socket.username, msg: data_msg});
+            socket.emit('err', {err_code: 124, err_detail: "Invalid message packet structure!"});
+            log ("Deny an invalid packet from '" +socket.username, '98');
         }
         else {
-            socket.emit('err', {err_code: 123, err_detail: "The username requested does not match!"});
-            log ("User '" +socket.username + "' send '" + data_msg + "' to '" + data.to + "' but this friend not found!" );
+
+            var data_message = entities.encode(data.message);
+            //data.from, data_message, data.time
+
+            // Send message to it self
+            user.to(socket.username).emit('self message', {message: data_message, inn: data.to, time: data.time});
+
+            // If this target user is exist in friend message
+            if (socket.friends.indexOf(data.to) !== -1) {
+                user.to(data.to).emit('message', {from: socket.username, message: data_message, time: data.time});
+            }
+            else {
+                socket.emit('err', {err_code: 123, err_detail: "The username requested does not match!"});
+                log ("User '" +socket.username + "' send '" + data_message + "' to '" + data.to + "' but this friend not found!" );
+                return;
+            }
+
+            // Select and assign chat session id for this chat
+            if (typeof socket.chat_session[data.to] === 'undefined') {
+
+                //SELECT `id`, `user1`, `user2`, `created_time` FROM `chat_sessions` WHERE created_time < DATE_SUB(now(), INTERVAL 3 HOUR);
+                //var query = "SELECT id FROM chat_sessions WHERE ((user1 = '" + socket.username + "' AND user2 = '" + data.to + "') OR (user1 = '" + data.to + "' AND user2 = '" + socket.username + "') AND created_time < DATE_SUB(now(), INTERVAL 3 HOUR) LIMIT 1;";
+                var query = "SELECT id FROM chat_sessions WHERE user1 = '" + [data.to, socket.username].sort()[0] + "' AND user2 = '" + [data.to, socket.username].sort()[1] + "' AND created_time > DATE_SUB(now(), INTERVAL 1 HOUR) ORDER BY `chat_sessions`.`created_time` DESC LIMIT 1;";
+
+                // We have two cases: No row return, one row (able to use or not)
+                con.query(query, function (err, result) {
+                    if (err) {
+                        //log(err, 129);
+                        throw err;
+                    }
+
+                    // If an recently session detected
+                    if (result.length === 1) {
+                        socket.chat_session[data.to] = result[0]['id'];
+
+                        // Call saveMessage function
+                        saveMessage(data_message, data.time, socket.username, socket.chat_session[data.to]);
+                    }
+                    else {
+
+                        // Get current time from system
+                        var dt = dateTime.create();
+
+                        // Insert another row and get insertedID
+                        query = "INSERT INTO `chat_sessions` (`id`, `user1`, `user2`, `created_time`) VALUES (NULL, '" + [data.to, socket.username].sort()[0] + "', '" + [data.to, socket.username].sort()[1] + "', '" + dt.format('Y-m-d H:M:S') + "');";
+                        con.query(query, function (err, result) {
+
+                            if (err) {
+                                //log (err);
+                                throw err;
+                            }
+                            else {
+                                // Assign chat session name to insertId
+                                socket.chat_session[data.to] = result.insertId;
+
+                                // Call saveMessage function
+                                saveMessage(data_message, data.time, socket.username, socket.chat_session[data.to]);
+                            }
+                        });
+                    }
+
+                });
+
+            }
+            else {
+
+                // Call saveMessage function
+                saveMessage(data_message, data.time, socket.username, socket.chat_session[data.to]);
+            }
         }
-
-        // Add to all_chat
-        // Create array with two client name
-        chat_name = [socket.username, data.to].sort()[0] + '_' + [socket.username, data.to].sort()[1];
-
-        if (typeof all_chat[chat_name] === 'undefined') {
-            all_chat[chat_name] = [];
-        }
-        all_chat[chat_name].push({'from': socket.username, 'msg': data_msg});
-
-        // Push this conversation name to list room
-        if (socket.room_list.indexOf(chat_name) === -1) {
-            socket.room_list.push(chat_name);
-        }
-
-
     });
 
     // Load previous message
-    socket.on('load pre msg', function (data) {
+    socket.on('load pre message', function (data) {
 
-        // data.inn -> friend, data.offset
-        var chat_name = [data.inn, socket.username].sort()[0] + '_' + [data.inn, socket.username].sort()[1];
-
-
-
-        if (typeof all_chat[chat_name] === 'undefined') {
-
-            // Get previous message in database
-            var query = "SELECT msg FROM `chat` WHERE name='" +chat_name+ "'";
-
-            con.query(query, function (err, row, field) {
-
-                if (err) return;
-
-                var num = row.length;
-                if (num === 0 || row[0]['msg'] === '') {
-                    socket.emit('pre msg', {inn: data.inn, arr: 'null'});
-                }
-                else {
-
-                    var JSON_array = row[0]['msg'].split('][').join(',');
-
-                    // Decode result to array
-                    var arr = (JSON.parse(JSON_array)).map(function (item) {
-                        return {from: item.from, msg: item.msg};
-                    });
-
-                    if (arr.length <= 30) {
-                        socket.emit('pre msg', {inn: data.inn, arr: arr});
-                    }
-                    else {
-                        socket.emit('pre msg', {inn: data.inn, arr: arr.splice(arr.length -30, arr.length + 1)});
-                    }
-                }
-            });
-
+        if (typeof data.inn === 'undefined' || typeof data.last_id === 'undefined' || data.last_time === 'undefined') {
+            socket.emit('err', {err_code: 125, err_detail: "Invalid load message packet structure!"});
         }
         else {
-            var max = all_chat[chat_name];
-            if (max <= 50) {
-                socket.emit('pre msg', {inn: data.inn, arr: all_chat[chat_name]});
-            }
-            else {
-                socket.emit('pre msg', {inn: data.inn, arr: all_chat[chat_name].splice(max - msg_offset, max + 1)});
-            }
+
+            //function getMsgBySessionId(month, year, last_id, member1, member2, callback) {
+            getMsgBySessionId(data.last_time, data.last_id, socket.username, data.inn, function(res) {
+
+                // Handle message
+                socket.emit('pre message', {inn: data.inn, arr: res});
+            });
         }
-
-
     });
 
+
+    // Save message when an user is completely disconnected
     socket.on('disconnect', function() {
         console.log(socket.username + ' with id ' + socket.id + ' disconnected!');
-
-        // Send emit to all friend
-        socket.friends.forEach(function (p1, p2, p3) {
-            if (typeof io.sockets.adapter.rooms[p1] !== 'undefined' && io.sockets.adapter.rooms[p1].length !== 0) {
-
-                // Emit to this friend that this friend is online
-                io.sockets.to(p1).emit('friend offline', {friend_id: socket.username});
-            }
-        });
-
-        saveMessage(socket.room_list, socket.username);
     });
 
+    // On error event
     socket.on('error', function () {
         saveMessage(socket.room_list, socket.username);
     });
 });
 
 // Handle exception, prevent from shutdown
-process.on('uncaughtException', function (err) {
-    log('Caught exception: ' + err);
-});
+// process.on('uncaughtException', function (err) {
+//     log('Caught exception: ' + err);
+//     console.log("Exception detected, see log files to get more info...");
+// });
+//==================================================Admin namespace===============================
+// var admin = io.of('/admin');
+// admin.on('connection', function(socket){
+//        console.log('an client connected');
+// });
+
 
 // Start the server
 console.log("Server started!");
@@ -208,64 +221,97 @@ function getFriendList(username, callback) {
 
     var arr = [];
 
-    var query = "SELECT user1, user2 FROM `relationship` WHERE (user1='" +username+ "' OR user2='" +username+ "') AND status = '1';";
+    var query = "call get_user_friend ('" + username + "')";
+    //var query = "SELECT * FROM user";
 
-    con.query(query, function (err, row, field) {
+    con.query(query, function (err, row) {
 
-        var num = row.length;
+        var data = row[0];
+
+        var num = data.length;
 
         for (var i = 0 ; i < num ; i++) {
 
-            (row[i].user1) === username ? arr.push(row[i].user2) : arr.push(row[i].user1);
+            (data[i].username) === username ? arr.push({username: data[i].username, name: data[i].name}) : arr.push({username: data[i].username, name: data[i].name});
         }
         callback(arr);
     });
 
 }
 
-// Save all message relate to this username
-function saveMessage(list, username) {
-
-    // get current time to exceed
-    var dt = dateTime.create();
-
-    // Only save message if client is completely disconnected
-    if (typeof io.sockets.adapter.rooms[username] === 'undefined' || io.sockets.adapter.rooms[username].length === 0) {
-
-        // We have an list of room
-        list.forEach(function (room_name) {
-
-            // Assign to an temp array
-            var temp_chat_array = JSON.stringify(all_chat[room_name]);
-
-            // Delete this chat room, then write to dtb
-            delete all_chat[room_name];
-
-            var chat_name = room_name + dt.format('_m-Y');
-
-            // Insert into database
-            var query = "INSERT INTO `chat` (`name`, `msg`) VALUES ('" +chat_name+ "', '" + temp_chat_array + "') ON DUPLICATE KEY UPDATE msg = concat(ifnull(msg,''), '" + temp_chat_array +"')";
-            con.query(query, function () {
-
-                log("Updated chat with name: " + chat_name);
-            });
-
-        });
-    }
-}
-
 // Receive log message and save to log file with time.
-function log(text) {
+function log(text, line) {
     var dt = dateTime.create();
     var today = dt.format('Y-m-d_');
     var time_now = dt.format('H:M:S');
-    fs.appendFile('log/' + today + 'log.txt', time_now + ': ' +  text + '\r\n');
+    fs.appendFile('log/' + today + 'log.txt', time_now + '- ' + line+ ": " +  text + '\r\n');
 }
 
-function Login(username, callback) {
-    var query = "Select ";
-    con.query(query, function (err, row, field) {
+// Save an message to database
+function saveMessage(message, time, sender, session_id) {
 
+    var query = "INSERT INTO `chat_messages` (`id`, `message`, `created_time`, `sender`, `session_id`) VALUES (NULL, '" + message + "', '" + time + "', '" + sender + "', '" + session_id + "');";
+    con.query(query, function (err, result) {
+        if (err){
+            //log (err, '254');
+            throw err;
+        }
+        // Handle result and error
+    });
 
+}
+
+// Get previous message
+function getMsgBySessionId(last_time, last_id, member1, member2, callback) {
+
+    var query = "SELECT id, created_time FROM chat_sessions WHERE user1 = '" + [member1, member2].sort()[0] + "' AND user2 = '" + [member1, member2].sort()[1] + "' AND created_time < '" + last_time + "' ORDER BY `chat_sessions`.`created_time` DESC LIMIT 1;";
+    con.query(query, function (err, result) {
+
+        if (err) {
+            //log(error, '267');s
+            throw err;
+        }
+        else {
+            if (result.length === 1) {
+
+                getPreviousMessage(result[0]['id'], last_id, function (res) {
+                   if (res.length !== 0) {
+
+                       // Got some message from database
+                       callback(res);
+                   }
+                   else {
+                           getMsgBySessionId(last_time, last_id, member1, member2, callback);
+                   }
+
+                });
+            }
+            else {
+                callback('end');
+            }
+        }
+    });
+
+}
+
+function getPreviousMessage(session_id, last_id, callback) {
+
+    var query;
+    if (last_id === 'null') {
+        query = "SELECT id, message, DATE_FORMAT(chat_messages.created_time,'%Y-%m-%d %H:%i:%S') as created_time, sender FROM chat_messages WHERE session_id = '" + session_id + "' ORDER BY id DESC LIMIT " + message_offset;
+
+    }
+    else {
+        query = "SELECT id, message, DATE_FORMAT(chat_messages.created_time,'%Y-%m-%d %H:%i:%S') as created_time, sender FROM chat_messages WHERE id < '" + last_id + "' AND session_id = '" + session_id + "' ORDER BY id DESC LIMIT " + message_offset;
+    }
+    con.query(query, function (error, result) {
+
+        if (result.length !== 0) {
+            // If some result return
+            callback(result);
+        }
+        else {
+            callback('');
+        }
     });
 }

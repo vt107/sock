@@ -6,12 +6,13 @@
  * Time: 9:51 CH
  */
 session_start();
-if (!isset($_SESSION['username'])) {
+if (!isset($_SESSION['username']) || !isset($_SESSION['name'])) {
     header("Location: login.php");
     die;
 }
 
 $me_name = $_SESSION['username'];
+$name = $_SESSION['name'];
 
 ?>
 <html lang="vi">
@@ -19,7 +20,7 @@ $me_name = $_SESSION['username'];
     <meta charset="UTF-8">
     <title>Chat</title>
     <link href="css/style.css" rel="stylesheet">
-    <link href="css/bootstrap.min.css" rel="stylesheet">
+    <link href="css/bootstrap.min.css?v=<?php echo time(); ?>" rel="stylesheet">
     <script src="js/jquery-3.2.1.min.js" ></script>
     <script src="js/socket.io.js"></script>
 
@@ -56,18 +57,17 @@ $me_name = $_SESSION['username'];
     <div class="row py-4">
         <div class="col-sm-2 rounded mt-2 rounded-bottom temp-border">
                 <ul id="ul_friend" class="list-group row cursor-pointer">
-                    <li data-username="abc" class="list-group-item online">Loading</li>
+                    <li data-username="abc" class="list-group-item">Loading</li>
+                    <li data-username="xyz" class="list-group-item">Loading</li>
                 </ul>
         </div>
         <div class="col-sm-9 ml-1 rounded mt-2 p-4 temp-border full-height">
             <div class="friend-info">
-                <h2 id="friend_name">Friend</h2>
-                <input id="friend_username" type="hidden" value="friend_username">
+                <h2 id="friend_name"></h2>
+                <input id="friend_username" type="hidden" value="">
             </div>
             <hr>
-            <div class="chat" id="chat-box">
-                <p class="user-msg">Hello!</p>
-                <p class="friend-msg">Goodbye!</p>
+            <div class="chat" id="chat_box">
             </div>
             <hr>
             <div class="col-lg-12">
@@ -80,7 +80,6 @@ $me_name = $_SESSION['username'];
             </div>
 
         </div>
-        <button id="load_pre_msg" class="btn btn-primary">Load previous message</button>
     </div>
 </div>
 </body>
@@ -88,5 +87,5 @@ $me_name = $_SESSION['username'];
         integrity="sha384-DztdAPBWPRXSA/3eYEEUWrWCy7G5KFbe8fFjk5JAIxUYHKkDx6Qin1DkWx51bBrb" crossorigin="anonymous"></script>
 <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js"
         integrity="sha384-vBWWzlZJ8ea9aCX4pEW3rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn" crossorigin="anonymous"></script>
-<script src="js/socket-client.js"></script>
+<script src="js/socket-client.js?v=<?php echo time(); ?>"></script>
 </html>

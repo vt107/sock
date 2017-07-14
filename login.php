@@ -35,7 +35,6 @@ if (isset($_POST['username']) && isset($_POST['password'])) {
     }
 
 }
-
 ?>
 <html lang="vi">
 <head>
@@ -46,20 +45,20 @@ if (isset($_POST['username']) && isset($_POST['password'])) {
 <body>
 <div class="container">
     <form action="" method="post">
-        <div class="col">
-            <div class="col-md-6">
-                <div class="col-md-4">
-                    <p><?php echo $error; ?></p>
-                    <input type="text" name="username" required placeholder="Username">
-                </div>
-                <div class="col-md-4">
-                    <input type="password" name="password" required placeholder="******">
-                </div>
-                <div class="col-md-3">
-                    <input type="submit" value="Submit" class="btn btn-primary">
-                </div>
+    <div class="row">
+        <div class="col-md-3 pt-3 m-auto">
+            <div class="col-md-6 pt-2">
+                <p><?php echo $error; ?></p>
+                <input type="text" name="username" required placeholder="Username">
+            </div>
+            <div class="col-md-6 pt-2">
+                <input type="password" name="password" required placeholder="******">
+            </div>
+            <div class="col-md-6 pt-2 m-auto">
+                <input type="submit" value="Submit" class="btn btn-primary">
             </div>
         </div>
+    </div>
     </form>
 </div>
 </body>

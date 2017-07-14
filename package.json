@@ -5,6 +5,8 @@
   "dependencies": {
     "express": "^4.15.2",
     "socket.io": "^2.0.3",
-    "mysql": "^2.13.0"
+    "mysql": "^2.13.0",
+    "node-datetime": "^1.0.1",
+    "html-entities": "^1.2.1",
   }
 }
