@@ -1,3 +1,0 @@
-13:41:09: Caught exception: Error: connect ECONNREFUSED 127.0.0.1:3306
-13:43:17: Caught exception: SyntaxError: Unexpected token u in JSON at position 0
-13:43:19: Caught exception: SyntaxError: Unexpected token u in JSON at position 0
