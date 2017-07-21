@@ -239,6 +239,12 @@ user.on('connection', function(socket) {
 
                 user.to(friend).emit('friend offline', {friend_id: socket.username});
             }
+        };
+        socket.friends.forEach(function (friend) {
+            if (typeof user.adapter.rooms[friend] !== 'undefined' && user.adapter.rooms[friend].length !== 0) {
+                
+                user.to(friend).emit('friend offline', {friend_id: socket.username});
+            }
         });
     });
 
