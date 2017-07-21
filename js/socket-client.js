@@ -216,7 +216,6 @@ $( document ).ready(function () {
 
         // Reset message after send
         msgInput.val("");
-        console.log("Sending....");
 
     });
 

@@ -128,30 +128,8 @@ user.on('connection', function(socket) {
             // Encode html this message to avoid syntax error and XXS
             var data_message = entities.encode(data.message);
 
-            /*
-             Send message to it self
-             event: 'self message'
-                message
-                inn
-                time
-             */
             user.to(socket.username).emit('self message', {message: data_message, inn: data.to, time: data.time});
-
-            /*
-             Send message to friend
-             event: 'message'
-             message
-             inn
-             time
-             */
-            if (socket.friends.indexOf(data.to) !== -1) {
-                user.to(data.to).emit('message', {from: socket.username, message: data_message, time: data.time});
-            }
-            else {
-                socket.emit('err', {err_code: 123, err_detail: "The username requested does not match!"});
-                log ("User '" +socket.username + "' send '" + data_message + "' to '" + data.to + "' but this friend not found!" );
-                return;
-            }
+            user.to(data.to).emit('message', {from: socket.username, message: data_message, time: data.time});
 
             // Select and assign chat session id for this chat
             if (typeof socket.chat_session[data.to] === 'undefined') {
@@ -170,7 +148,10 @@ user.on('connection', function(socket) {
                         socket.chat_session[data.to] = result[0]['id'];
 
                         // Call saveMessage function
-                        saveMessage(data_message, data.time, socket.username, socket.chat_session[data.to]);
+                        saveMessage(data_message, data.time, socket.username, socket.chat_session[data.to], function (id) {
+                            user.to(socket.username).emit('self message', {inn: data.to, id: id, message: data_message, time: data.time});
+                            user.to(data.to).emit('message', {from: socket.username, id: id, message: data_message, time: data.time});
+                        });
                     }
                     else {
 
@@ -191,7 +172,10 @@ user.on('connection', function(socket) {
                                 statistic.total_session = result1.insertId;
 
                                 // Call saveMessage function
-                                saveMessage(data_message, data.time, socket.username, socket.chat_session[data.to]);
+                                saveMessage(data_message, data.time, socket.username, socket.chat_session[data.to], function (id) {
+                                    user.to(socket.username).emit('self message', {inn: data.to, id: id, message: data_message, time: data.time});
+                                    user.to(data.to).emit('message', {from: socket.username, id: id, message: data_message, time: data.time});
+                                });
                             }
                         });
                     }
@@ -202,7 +186,10 @@ user.on('connection', function(socket) {
             else {
 
                 // Call saveMessage function
-                saveMessage(data_message, data.time, socket.username, socket.chat_session[data.to]);
+                saveMessage(data_message, data.time, socket.username, socket.chat_session[data.to], function (id) {
+                    user.to(socket.username).emit('self message', {inn: data.to, id: id, message: data_message, time: data.time});
+                    user.to(data.to).emit('message', {from: socket.username, id: id, message: data_message, time: data.time});
+                });
             }
         }
     });
@@ -239,7 +226,7 @@ user.on('connection', function(socket) {
 
                 user.to(friend).emit('friend offline', {friend_id: socket.username});
             }
-        };
+        });
         socket.friends.forEach(function (friend) {
             if (typeof user.adapter.rooms[friend] !== 'undefined' && user.adapter.rooms[friend].length !== 0) {
                 
@@ -290,7 +277,7 @@ function log(text, line) {
 }
 
 // Save an message to database
-function saveMessage(message, time, sender, session_id) {
+function saveMessage(message, time, sender, session_id, callback) {
 
     var query = "INSERT INTO `chat_messages` (`id`, `message`, `created_time`, `sender`, `session_id`) VALUES (NULL, '" + message + "', '" + time + "', '" + sender + "', '" + session_id + "');";
     con.query(query, function (error, result) {
@@ -298,6 +285,9 @@ function saveMessage(message, time, sender, session_id) {
             log (error, '304');
         }
         statistic.total_message = result.insertId;
+
+        // Callback to send ID
+        callback(result.insertId);
     });
 }
 
