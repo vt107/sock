@@ -55,34 +55,12 @@ $name = $_SESSION['name'];
 
 <div class="container">
     <div class="row py-4">
-        <div class="col-sm-2 rounded mt-2 rounded-bottom temp-border">
-                <ul id="ul_friend" class="list-group row cursor-pointer">
-                    <li data-username="abc" class="list-group-item">Loading</li>
-                    <li data-username="xyz" class="list-group-item">Loading</li>
-                </ul>
+        <div class="col-md-12">
+            <p id="concurrent_connection">Waiting...</p>
+            <p id="total_message">Waiting...</p>
+            <p id="total_session">Waiting...</p>
         </div>
-        <div class="col-sm-9 ml-1 rounded mt-2 p-4 temp-border full-height">
-            <div class="friend-info">
-                <h2 id="friend_name"></h2>
-                <input id="friend_username" type="hidden" value="">
-            </div>
-            <hr>
-            <div class="chat" id="chat_box">
-            </div>
-            <hr>
-            <div class="col-lg-12">
-                <div class="input-group">
-                    <input type="text" id="messageInput" class="form-control" placeholder="Enter your message">
-                    <span class="input-group-btn">
-                        <button id="send" class="btn btn-primary" type="button">Send</button>
-                    </span>
-                </div>
-            </div>
-
-        </div>
-    </div>
-    <div>
-        <button id="load_previous_message">Load previous message</button>
+        <button id="get_statistic">Get statistic</button>
     </div>
 </div>
 </body>
@@ -90,5 +68,5 @@ $name = $_SESSION['name'];
         integrity="sha384-DztdAPBWPRXSA/3eYEEUWrWCy7G5KFbe8fFjk5JAIxUYHKkDx6Qin1DkWx51bBrb" crossorigin="anonymous"></script>
 <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js"
         integrity="sha384-vBWWzlZJ8ea9aCX4pEW3rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn" crossorigin="anonymous"></script>
-<script src="js/socket-client.js?v=<?php echo time(); ?>"></script>
+<script src="js/socket-admin.js?v=<?php echo time(); ?>"></script>
 </html>

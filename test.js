@@ -11,15 +11,26 @@ var mysql = require('mysql');
 var con = mysql.createConnection({
     host: "localhost",
     user: "root",
-    password: "",
+    password: "vantho",
     database: "socket"
 });
 
+var queryy = "INSERT INTO `chat_messages` (`id`, `message`, `created_time`, `sender`, `session_id`) VALUES (NULL, 'go fetch this file. when you cou co', '2017-07-20 17:20:09', 'user1', '14')"
+for (var i = 0; i <= 50000 ; i++) {
+    if ( i % 2 === 0) {
+        queryy += ", (NULL, 'This is an random message...', '2017-07-20 17:20:11', 'user2', '14')";
+    }
+    else {
+        queryy += ", (NULL, 'This is an random message...', '2017-07-20 17:20:11', 'user1', '14')";
+    }
 
-var query = "SELECT DATE_FORMAT(chat_messages.created_time,'%Y-%m-%d %H:%i:%S') as created_time FROM `chat_messages` WHERE id = '222'";
-con.query(query, function (error, result) {
-
-    console.log(result);
-});
-
-con.end();
+}
+var max = 1000;
+function insert() {
+    con.query(queryy, function (error, result) {});
+}
+for (var j = 0; j < max ; j++) {
+    setTimeout(function () {
+        insert();
+    },1);
+}
