@@ -1,0 +1,3 @@
+16:46:17- undefined: Caught exception: Error: ER_BAD_DB_ERROR: Unknown database 'socket'
+16:52:39- undefined: Caught exception: Error: ER_BAD_DB_ERROR: Unknown database 'socket'
+16:52:42- undefined: Caught exception: TypeError: Cannot read property '0' of undefined

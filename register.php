@@ -1,41 +1,44 @@
 <?php
 include "config.php";
 if (isset($_SESSION['email'], $_SESSION['logged_in']) && $_SESSION['logged_in']) {
-    header("Location: index.php");
-    exit();
+  header("Location: index.php");
+  exit();
 }
 
-if (isset($_POST['email']) && isset($_POST['password'])) {
+if (isset($_POST['email'], $_POST['password'], $_POST['name'], $_POST['email'])) {
   $email = $_POST['email'];
-  $password = $_POST['password'];
 
-  $stmt = $connection->prepare("SELECT id, password FROM users WHERE email=?");
-  $stmt->bind_param("s", $email);
-  $stmt->execute();
-  $result = $stmt->get_result();
-  $stmt->close();
-  if ($result->num_rows > 0) {
-    $user = $result->fetch_assoc();
-    if (password_verify($password, $user['password'])) {
-      $_SESSION['email'] = $email;
-      $_SESSION['user_id'] = $user['id'];
-      $_SESSION['logged_in'] = true;
-      header('Location: index.php');
-      exit();
+  if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    $password = $_POST['password'];
+    $name = $_POST['name'];
+    if (strlen($password) < 5) {
+      $error = 'Mat khau chua du dai!';
     } else {
-      $error = 'Sai mat khau!';
+      $stmt = $connection->prepare("SELECT id FROM users WHERE email=?");
+      $stmt->bind_param("s", $email);
+      $stmt->execute();
+      $stmt->store_result();
+      $rows = $stmt->num_rows;
+      $stmt->close();
+      if ($rows == 0) {
+        $password = password_hash($password, PASSWORD_BCRYPT);
+        $stmt = $connection->prepare("INSERT INTO `users`( `email`, `password`, `name`) VALUES (?, ?, ?)");
+        $stmt->bind_param("sss", $email, $password, $name);
+        $stmt->execute();
+        $stmt->close();
+        $success = 'Dang ky thanh cong!';
+      }
     }
   } else {
-    $error = 'Dang nhap that bai!';
-    // guacamole
+    $error = 'Email chua dung dinh dang!';
   }
 }
 ?>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <title>Login</title>
-    <link href="css/bootstrap.min.css" rel="stylesheet">
+  <meta charset="UTF-8">
+  <title>Login</title>
+  <link href="css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
 <nav class="navbar navbar-expand-lg navbar-light bg-light">
@@ -70,43 +73,60 @@ if (isset($_POST['email']) && isset($_POST['password'])) {
   </div>
 </nav>
 <div class="container">
-  <form action="" method="post">
+  <form action="" method="post" id="register_form">
     <div class="row py-5">
       <div class="col-md-5 pt-3 m-auto form-control">
-
         <?php if (isset($error)): ?>
           <div class="alert alert-danger alert-dismissible fade show" role="alert">
             <button type="button" class="close" data-dismiss="alert" aria-label="Close">
               <span aria-hidden="true">&times;</span>
             </button>
             <?php echo $error ?>
-          </div>
-        <?php elseif (isset($success)): ?>
-          <div class="alert alert-success alert-dismissible fade show" role="alert">
-            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-              <span aria-hidden="true">&times;</span>
-            </button>
-            <?php echo $success ?>
-          </div>
-        <?php endif; ?>
-
+            </div>
+          <?php elseif (isset($success)): ?>
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+              <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+              </button>
+              <?php echo $success ?>
+            </div>
+          <?php endif; ?>
         <div class="form-group">
           <label>Email</label>
           <input name="email" type="email" required placeholder="email" class="form-control">
         </div>
         <div class="form-group">
+          <label>Name</label>
+          <input name="name" required placeholder="name" class="form-control">
+        </div>
+        <div class="form-group">
           <label>Password</label>
-          <input type="password" name="password" placeholder="Password" class="form-control">
+          <input type="password" id="password" name="password" placeholder="Password" class="form-control" required minlength="5">
+        </div>
+        <div class="form-group">
+          <label>Re Paswword</label>
+          <input type="password" id="re_password" placeholder="Password" class="form-control" required minlength="5">
         </div>
         <div class="form-group">
           <button class="btn btn-success btn-block">Submit</button>
         </div>
         <div class="col-md-12">
-          Chua co tai khoan? <a href="register.php">Dang ky</a>
+          Da co tai khoan? <a href="login.php">Dang nhap</a>
         </div>
       </div>
     </div>
   </form>
 </div>
+<script src="js/jquery-3.2.1.min.js"></script>
+<script>
+  $('#register_form').submit(function(e) {
+    var password = $('#password').val();
+    var re_password = $('#re_password').val();
+    if (password !== re_password) {
+      e.preventDefault();
+      alert('mk xac nhan');
+    }
+  });
+</script>
 </body>
 </html>
