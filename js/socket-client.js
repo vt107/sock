@@ -74,18 +74,18 @@ $( document ).ready(function () {
 
   // Message previous message
   socket.on ('previous message', function (data) {
-    if (data.arr === 'end') {
+    if (data.messages.length === 0) {
       console.log("No new message was found in this conversation!");
       return;
     }
-    if (typeof chat_data[data.with] === 'undefined') {
+    if (!chat_data[data.with]) {
       chat_data[data.with] = [];
     }
-    chat_data[data.with] = (data.arr).concat(data.with);
+    chat_data[data.with] = (data.messages).concat(data.with);
 
     // If current chat box is open
     if ($('#friend_email').val() === data.with) {
-      data.arr.forEach(function (item) {
+      data.messages.forEach(function (item) {
 
         prepend_message(item.sender, item.message, item['created_at'], item.id);
       });
@@ -121,10 +121,9 @@ $( document ).ready(function () {
   // On error event
   socket.on( 'err', function( data ) {
 
-    console.log("Err " +data.err_code+ ": " +data.err_detail);
+    console.log("Lỗi: " + data.message);
 
   });
-  // =====================================================
 
   // Get chat box from html
   var all_chat_html = $('#chat_box');
@@ -193,10 +192,6 @@ $( document ).ready(function () {
     }
   });
 
-  $('#load_previous_message').click(function () {
-    loadPreviousMessage();
-  });
-
   // Load previous message when requested
   function loadPreviousMessage() {
     var first_message = $('#chat_box > p:first-child');
@@ -212,7 +207,7 @@ $( document ).ready(function () {
 
     socket.emit('load previous message', {with: friend_email.val(), last_id: last_id, last_time: last_time});
 
-    console.log("Asking message with " + friend_email.val(), last_id, last_time);
+    console.log("Đang lấy tin nhắn cũ trong chat với " + friend_email.val(), last_id, last_time);
   }
 
 });

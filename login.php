@@ -23,10 +23,10 @@ if (isset($_POST['email']) && isset($_POST['password'])) {
       header('Location: index.php');
       exit();
     } else {
-      $error = 'Sai mat khau!';
+      $error = 'Sai mật khẩu!';
     }
   } else {
-    $error = 'Dang nhap that bai!';
+    $error = 'Email này không tồn tại!';
     // guacamole
   }
 }
@@ -34,7 +34,7 @@ if (isset($_POST['email']) && isset($_POST['password'])) {
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>Login</title>
+    <title>Đăng nhập</title>
     <link href="css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
@@ -90,19 +90,21 @@ if (isset($_POST['email']) && isset($_POST['password'])) {
           </div>
         <?php endif; ?>
 
+        <h3>Đăng nhập</h3>
+
         <div class="form-group">
           <label>Email</label>
-          <input name="email" type="email" required placeholder="email" class="form-control">
+          <input name="email" type="email" required placeholder="Email" class="form-control">
         </div>
         <div class="form-group">
-          <label>Password</label>
-          <input type="password" name="password" placeholder="Password" class="form-control">
+          <label>Mật khẩu</label>
+          <input type="password" name="password" placeholder="Mật khẩu" class="form-control">
         </div>
         <div class="form-group">
-          <button class="btn btn-success btn-block">Submit</button>
+          <button class="btn btn-success btn-block">Đăng nhập</button>
         </div>
         <div class="col-md-12">
-          Chua co tai khoan? <a href="register.php">Dang ky</a>
+          Chưa có tài khoản? <a href="register.php">Đăng ký</a>
         </div>
       </div>
     </div>

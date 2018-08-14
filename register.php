@@ -12,7 +12,7 @@ if (isset($_POST['email'], $_POST['password'], $_POST['name'], $_POST['email']))
     $password = $_POST['password'];
     $name = $_POST['name'];
     if (strlen($password) < 5) {
-      $error = 'Mat khau chua du dai!';
+      $error = 'Mật khẩu phải tối thiểu 5 ký tự!';
     } else {
       $stmt = $connection->prepare("SELECT id FROM users WHERE email=?");
       $stmt->bind_param("s", $email);
@@ -26,18 +26,18 @@ if (isset($_POST['email'], $_POST['password'], $_POST['name'], $_POST['email']))
         $stmt->bind_param("sss", $email, $password, $name);
         $stmt->execute();
         $stmt->close();
-        $success = 'Dang ky thanh cong!';
+        $success = 'Đăng ký thành công, hãy đăng nhập ng!';
       }
     }
   } else {
-    $error = 'Email chua dung dinh dang!';
+    $error = 'Email chưa đúng định dạng!';
   }
 }
 ?>
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
-  <title>Login</title>
+  <title>Đăng ký</title>
   <link href="css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
@@ -76,6 +76,7 @@ if (isset($_POST['email'], $_POST['password'], $_POST['name'], $_POST['email']))
   <form action="" method="post" id="register_form">
     <div class="row py-5">
       <div class="col-md-5 pt-3 m-auto form-control">
+        <h3>Đăng ký tài khoản</h3>
         <?php if (isset($error)): ?>
           <div class="alert alert-danger alert-dismissible fade show" role="alert">
             <button type="button" class="close" data-dismiss="alert" aria-label="Close">
@@ -93,25 +94,25 @@ if (isset($_POST['email'], $_POST['password'], $_POST['name'], $_POST['email']))
           <?php endif; ?>
         <div class="form-group">
           <label>Email</label>
-          <input name="email" type="email" required placeholder="email" class="form-control">
+          <input name="email" type="email" required placeholder="Email" class="form-control">
         </div>
         <div class="form-group">
-          <label>Name</label>
-          <input name="name" required placeholder="name" class="form-control">
+          <label>Họ tên</label>
+          <input name="name" required placeholder="Tên của b" class="form-control">
         </div>
         <div class="form-group">
-          <label>Password</label>
-          <input type="password" id="password" name="password" placeholder="Password" class="form-control" required minlength="5">
+          <label>Mật khẩu</label>
+          <input type="password" id="password" name="password" placeholder="Mật khẩu" class="form-control" required minlength="5">
         </div>
         <div class="form-group">
-          <label>Re Paswword</label>
-          <input type="password" id="re_password" placeholder="Password" class="form-control" required minlength="5">
+          <label>Xác nhận mật khẩu</label>
+          <input type="password" id="re_password" placeholder="Xác nhận mật khẩu" class="form-control" required minlength="5">
         </div>
         <div class="form-group">
-          <button class="btn btn-success btn-block">Submit</button>
+          <button class="btn btn-success btn-block">Đăng ký</button>
         </div>
         <div class="col-md-12">
-          Da co tai khoan? <a href="login.php">Dang nhap</a>
+          Đã có tài kh? <a href="login.php">Đăng nhập</a>
         </div>
       </div>
     </div>
@@ -124,7 +125,7 @@ if (isset($_POST['email'], $_POST['password'], $_POST['name'], $_POST['email']))
     var re_password = $('#re_password').val();
     if (password !== re_password) {
       e.preventDefault();
-      alert('mk xac nhan');
+      alert('Mật khẩu xác nhận chưa trùng khớp!');
     }
   });
 </script>

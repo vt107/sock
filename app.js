@@ -4,13 +4,9 @@ var io = require('socket.io')(server);
 var mysql = require('mysql');
 var async = require("async");
 
-// get time from system
-var dateTime = require('node-datetime');
-
 // Fs to open file stream, read file and write
 var fs = require('fs');
 
-// We have to use html entry encode to defend our system
 var Entities = require('html-entities').XmlEntities;
 var entities = new Entities();
 
@@ -24,10 +20,7 @@ var connection = mysql.createConnection({
 });
 
 connection.connect();
-
-//==============config==================
 var message_offset = 30;
-//======================================
 
 //======================================
 io.on('connection', function(socket) {
@@ -35,12 +28,6 @@ io.on('connection', function(socket) {
 
   // Emit with ID
   //io.sockets.sockets[socket.id].emit('respond', { hello: 'Hey, Mr.Client!' });
-
-  // Emit all
-  //io.emit('respond', { hello: "emit all" });
-
-  // Emit by room name
-  //io.sockets.to('room_name').emit('respond', {data: "123"});
 
   socket.email = socket.request._query['email'];
   socket.friends = [];
@@ -50,8 +37,6 @@ io.on('connection', function(socket) {
 
   console.log(socket.email  + ' with id ' + socket.id + ' connected!');
 
-  // Update friend list for this client
-  // Friend list to return
   var friend_list = [];
 
   async.waterfall([
@@ -61,7 +46,7 @@ io.on('connection', function(socket) {
           socket.user_id = result[0]['id'];
           callback();
         } else {
-          callback(Error('This user not exist!'));
+          callback(Error('Người dùng với email ' +socket.email+ ' không tồn tại!'));
         }
       });
     },
@@ -88,19 +73,18 @@ io.on('connection', function(socket) {
     });
     socket.emit('update_friend', {list: friend_list});
   });
-
   socket.on('message', function (data) {
     console.log(data);
-    if (typeof data.to === 'undefined' || typeof data.message === 'undefined') {
-      socket.emit('err', {err_code: 124, err_detail: "Invalid message packet structure!"});
-      console.log ("Deny an invalid packet from '" +socket.email);
+    if (!data.to || !data.message) {
+      socket.emit('err', {message: "Sai định dạng gói tin!"});
+      console.log ("Đã chặn gói tin không hợp lệ t '" +socket.email);
     }
     else {
       // Encode html this message to avoid syntax error and XXS
       var data_message = entities.encode(data.message);
 
       // Select and assign chat session id for this chat
-      if (typeof socket.chat_session[data.to] === 'undefined') {
+      if (socket.chat_session[data.to]) {
         var query = "SELECT id FROM chat_sessions WHERE user1 = ? AND user2 = ? AND created_at > DATE_SUB(now(), INTERVAL 1 HOUR) ORDER BY `chat_sessions`.`created_at` DESC LIMIT 1";
         // We have two cases: No row return, one row (able to use or not)
         connection.query(query, [data.to, socket.email].sort(), function (err,  result) {
@@ -149,31 +133,24 @@ io.on('connection', function(socket) {
     }
   });
 
-  /*
-    User emit an 'load previous message' to request older message
-        with
-        last_id (able to null)
-        last_time
-     */
   socket.on('load_previous_message', function (data) {
 
-    if (typeof data.with === 'undefined' || typeof data.last_id === 'undefined' || data.last_time === 'undefined') {
-      socket.emit('err', {err_code: 125, err_detail: "Invalid load message packet structure!"});
+    if (!data.with || !data.last_id) {
+      socket.emit('err', {message: "Sai định dạng gói tin!"});
     }
     else {
-
-      //function getMsgBySessionId(month, year, last_id, member1, member2, callback) {
-      getMsgBySessionId(data.last_time, data.last_id, socket.email, data.with, function(res) {
-
-        // Handle message
-        socket.emit('previous message', {with: data.with, arr: res});
+      getMessageById(data.last_id, function(error, result) {
+        if (error) throw error;
+        getMsgBySessionId(result[0]['created_at'], data.last_id, socket.email, data.with, function(res) {
+          socket.emit('previous message', {with: data.with, messages: res});
+        });
       });
     }
   });
 
   // Save message when an user is completely disconnected
   socket.on('disconnect', function() {
-    console.log(socket.email + ' with id ' + socket.id + ' disconnected!');
+    console.log(socket.email + ' đã ngắt kết nối!');
     socket.friends.forEach(function (friend) {
       if (io.nsps['/'].adapter.rooms[friend]) {
 
@@ -188,12 +165,6 @@ io.on('connection', function(socket) {
   });
 });
 
-// Handle exception, prevent from shutdown
-// process.on('uncaughtException', function (err) {
-//   log('Caught exception: ' + err);
-//   console.log("Exception detected, see log files to get more info...");
-// });
-
 // Save an message to database
 function saveMessage(message, sender, session_id, callback) {
 
@@ -202,62 +173,58 @@ function saveMessage(message, sender, session_id, callback) {
     if (error){
       throw error;
     }
-
     callback(result.insertId);
   });
 }
 
+function getMessageById(messageId, callback) {
+  connection.query("SELECT * FROM chat_message WHERE id = ?", [messageId], callback);
+}
+
 // Get previous message by session ID, last time, last id, members
-function getMsgBySessionId(last_time, last_id, member1, member2, callback) {
-
-  var query = "SELECT id, created_at FROM chat_sessions WHERE user1 = '" + [member1, member2].sort()[0] + "' AND user2 = '" + [member1, member2].sort()[1] + "' AND created_at < '" + last_time + "' ORDER BY `chat_sessions`.`created_at` DESC LIMIT 1;";
-  connection.query(query, function (error, result) {
-
+function getMsgBySessionId(lastMessageId, lastMessageTime, member1, member2, callback) {
+  var tMember = [member1, member2].sort();
+  var query = "SELECT id, created_at FROM chat_sessions WHERE user1 = ? AND user2 = ? AND created_at < ? ORDER BY `chat_sessions`.`created_at` DESC LIMIT 1";
+  connection.query(query, [tMember[0], tMember[1], lastMessageTime],  function (error, result) {
     if (error) {
       throw error;
     }
     else {
       if (result.length === 1) {
-
-        getPreviousMessage(result[0]['id'], last_id, function (res) {
-          if (res.length !== 0) {
-
-            // Got some message from database
+        getPreviousMessage(result[0]['id'], lastMessageId, function (res) {
+          if (res && res.length !== 0) {
             callback(res);
           }
           else {
-            getMsgBySessionId(result[0]['created_at'], last_id, member1, member2, callback);
+            getMsgBySessionId(result[0]['created_at'], lastMessageTime, member1, member2, callback);
           }
         });
       }
       else {
-        callback('end');
+        callback();
       }
     }
   });
-
 }
 /*
  Get previous messages by session id, last id
  */
-function getPreviousMessage(session_id, last_id, callback) {
+function getPreviousMessage(sessionId, last_id, callback) {
 
-  var query;
-  if (last_id === 'null') {
-    query = "SELECT id, message, DATE_FORMAT(chat_messages.created_at,'%Y-%m-%d %H:%i:%S') as created_at, sender FROM chat_messages WHERE session_id = '" + session_id + "' ORDER BY id DESC LIMIT " + message_offset;
-
+  var query, data2bind = [sessionId, message_offset];
+  if (!last_id) {
+    query = "SELECT id, message, DATE_FORMAT(chat_messages.created_at,'%Y-%m-%d %H:%i:%S') as created_at, sender FROM chat_messages WHERE session_id = ? ORDER BY id DESC LIMIT ?";
   }
   else {
-    query = "SELECT id, message, DATE_FORMAT(chat_messages.created_at,'%Y-%m-%d %H:%i:%S') as created_at, sender FROM chat_messages WHERE id < '" + last_id + "' AND session_id = '" + session_id + "' ORDER BY id DESC LIMIT " + message_offset;
+    query = "SELECT id, message, DATE_FORMAT(chat_messages.created_at,'%Y-%m-%d %H:%i:%S') as created_at, sender FROM chat_messages WHERE id < ? AND session_id = ? ORDER BY id DESC LIMIT ?";
+    data2bind.unshift(last_id);
   }
-  connection.query(query, function (error, result) {
-
-    if (result.length !== 0) {
-      // If some result return
+  connection.query(query, data2bind, function (error, result) {
+    if (result.length > 0) {
       callback(result);
     }
     else {
-      callback('');
+      callback();
     }
   });
 }
