@@ -33,9 +33,9 @@ if (isset($_POST['email']) && isset($_POST['password'])) {
 ?>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <title>Đăng nhập</title>
-    <link href="css/bootstrap.min.css" rel="stylesheet">
+  <meta charset="UTF-8">
+  <title>Đăng nhập</title>
+  <link href="css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
 <nav class="navbar navbar-expand-lg navbar-light bg-light">

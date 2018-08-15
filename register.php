@@ -39,8 +39,21 @@ if (isset($_POST['email'], $_POST['password'], $_POST['name'], $_POST['email']))
   <meta charset="UTF-8">
   <title>Đăng ký</title>
   <link href="css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://apis.google.com/js/platform.js" async defer></script>
+  <meta name="google-signin-client_id" content="932384998311-hq1q89d1p8ij1g9nactsicjqaql0purh.apps.googleusercontent.com">
+
 </head>
 <body>
+
+<div id="fb-root"></div>
+<script>(function(d, s, id) {
+    var js, fjs = d.getElementsByTagName(s)[0];
+    if (d.getElementById(id)) return;
+    js = d.createElement(s); js.id = id;
+    js.src = 'https://connect.facebook.net/vi_VN/sdk.js#xfbml=1&version=v3.1';
+    fjs.parentNode.insertBefore(js, fjs);
+  }(document, 'script', 'facebook-jssdk'));</script>
+
 <nav class="navbar navbar-expand-lg navbar-light bg-light">
   <a class="navbar-brand" href="#">Navbar</a>
   <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
@@ -94,11 +107,11 @@ if (isset($_POST['email'], $_POST['password'], $_POST['name'], $_POST['email']))
           <?php endif; ?>
         <div class="form-group">
           <label>Email</label>
-          <input name="email" type="email" required placeholder="Email" class="form-control">
+          <input name="email" id="email" type="email" required placeholder="Email" class="form-control">
         </div>
         <div class="form-group">
           <label>Họ tên</label>
-          <input name="name" required placeholder="Tên của b" class="form-control">
+          <input name="name" id="name" required placeholder="Tên của bạn" class="form-control">
         </div>
         <div class="form-group">
           <label>Mật khẩu</label>
@@ -111,8 +124,23 @@ if (isset($_POST['email'], $_POST['password'], $_POST['name'], $_POST['email']))
         <div class="form-group">
           <button class="btn btn-success btn-block">Đăng ký</button>
         </div>
+        <div class="row">
+          <div class="col-md-6">
+            <div class="g-signin2" data-onsuccess="onSignIn"></div>
+          </div>
+          <div class="col-md-6">
+            <div id="fb-root"></div>
+            <script>(function(d, s, id) {
+                var js, fjs = d.getElementsByTagName(s)[0];
+                if (d.getElementById(id)) return;
+                js = d.createElement(s); js.id = id;
+                js.src = 'https://connect.facebook.net/vi_VN/sdk.js#xfbml=1&version=v3.1';
+                fjs.parentNode.insertBefore(js, fjs);
+              }(document, 'script', 'facebook-jssdk'));</script>
+          </div>
+        </div>
         <div class="col-md-12">
-          Đã có tài kh? <a href="login.php">Đăng nhập</a>
+          Đã có tài khoản? <a href="login.php">Đăng nhập</a>
         </div>
       </div>
     </div>
@@ -120,6 +148,14 @@ if (isset($_POST['email'], $_POST['password'], $_POST['name'], $_POST['email']))
 </div>
 <script src="js/jquery-3.2.1.min.js"></script>
 <script>
+
+  function onSignIn(googleUser) {
+    var profile = googleUser.getBasicProfile();
+    $('#name').val(profile.getName());
+    $('#email').val(profile.getEmail());
+    alert('Hãy chọn mật khẩu, lần tới bạn có thể đăng nhập bằng email và mật khẩu này!');
+  }
+
   $('#register_form').submit(function(e) {
     var password = $('#password').val();
     var re_password = $('#re_password').val();
